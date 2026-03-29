@@ -21,16 +21,21 @@
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+        }
+
         body { 
             background-color: #000000; 
             color: #FFFFFF;
-            margin: 0;
-            height: 100dvh; 
             font-size: 16px; 
             -webkit-tap-highlight-color: transparent;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
             display: flex;
             flex-direction: column;
         }
@@ -378,7 +383,16 @@
             const rect = canvas.getBoundingClientRect(); 
             const t = (e.touches && e.touches.length > 0) ? e.touches[0] : 
                       (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e; 
-            return { x: t.clientX - rect.left, y: t.clientY - rect.top }; 
+            
+            // PWA等でCanvasのCSSサイズと内部解像度にズレが生じた場合の補正係数
+            const dpr = window.devicePixelRatio || 1;
+            const scaleX = (canvas.width / dpr) / (rect.width || 1);
+            const scaleY = (canvas.height / dpr) / (rect.height || 1);
+
+            return { 
+                x: (t.clientX - rect.left) * scaleX, 
+                y: (t.clientY - rect.top) * scaleY 
+            }; 
         }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
         function s2w(s) { return { x: (s.x - cameraX) / zoom, y: (s.y - cameraY) / zoom }; }
@@ -702,7 +716,15 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            
+            // ResizeObserverを使用して、PWAや全画面化時の動的な領域変化に確実に追従させる
+            const canvasArea = document.querySelector('.canvas-area');
+            if (window.ResizeObserver) {
+                const resizeObserver = new ResizeObserver(() => { resize(); });
+                resizeObserver.observe(canvasArea);
+            } else {
+                window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            }
         };
 
         function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'block'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
