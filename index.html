@@ -388,11 +388,9 @@
         function getRawCoords(e) {
             const rect = canvas.getBoundingClientRect();
             const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
-            const scaleX = rect.width ? canvas.width / rect.width : 1;
-            const scaleY = rect.height ? canvas.height / rect.height : 1;
             return {
-                x: (t.clientX - rect.left) * scaleX,
-                y: (t.clientY - rect.top) * scaleY
+                x: t.clientX - rect.left,
+                y: t.clientY - rect.top
             };
         }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
@@ -413,13 +411,11 @@
             if (!canvas) return;
             updateAppHeight();
             const rect = canvas.parentElement.getBoundingClientRect();
-            const ratio = window.devicePixelRatio || 1;
-            canvas.width = Math.round(rect.width * ratio);
-            canvas.height = Math.round(rect.height * ratio);
+            canvas.width = Math.round(rect.width);
+            canvas.height = Math.round(rect.height);
             canvas.style.width = rect.width + 'px';
             canvas.style.height = rect.height + 'px';
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.scale(ratio, ratio);
             draw();
         }
 
