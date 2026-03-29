@@ -17,19 +17,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
-                    }
+            --safe-top: 0px;
+            --safe-bottom: 0px;
+        }
 
         body { 
             background-color: #000000; 
             color: #FFFFFF;
             margin: 0;
-            height: 100dvh; 
+            height: 100vh; 
             font-size: 16px; 
             -webkit-tap-highlight-color: transparent;
             overflow: hidden;
-            position: fixed;
+            position: relative;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -83,7 +83,7 @@
         
         .modal { 
             display: none; 
-            position: fixed; 
+            position: relative; 
             inset: 0; 
             background: rgba(0, 0, 0, 0.9); 
             align-items: flex-start; 
@@ -131,7 +131,7 @@
         }
         
         #pressProgress { 
-            position: fixed; 
+            position: relative; 
             top: 0; 
             left: 0; 
             height: 4px; 
@@ -251,10 +251,10 @@
                             </svg>
                         </div>
                         <div class="flex-1">
-                            <input type="text" id="baseDimInput" placeholder="直線距離(㎜)" readonly inputmode="none" class="w-full h-9 rounded-lg text-base px-3 font-bold text-black bg-white border-none focus:ring-1 focus:ring-black cursor-pointer">
+                            <input type="text" id="baseDimInput" placeholder="直線距離(mm)" readonly inputmode="none" class="w-full h-9 rounded-lg text-base px-3 font-bold text-black bg-white border-none focus:ring-1 focus:ring-black cursor-pointer">
                         </div>
                         <div id="hypotenuseResultBox" class="flex items-center justify-center min-w-[75px] bg-[#5E5CE6] h-9 rounded-lg border border-black/5 shadow-sm px-1 cursor-pointer active:opacity-80">
-                            <span id="hypotenuseResult" class="text-sm font-black text-white tabular-nums">0㎜</span>
+                            <span id="hypotenuseResult" class="text-sm font-black text-white tabular-nums">0.00mm</span>
                         </div>
                     </div>
                 </div>
@@ -313,7 +313,7 @@
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="7">7</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="8">8</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="9">9</button>
-                    <button type="button" id="numpadClear" class="bg-[#48484A] text-white rounded-xl h-[3.1rem] font-bold text-[13px] btn-tap">クリア</button>
+                    <button type="button" id="numpadClear" class="bg-[#48484A] text-white rounded-xl h-[3.1rem] flex items-center justify-center btn-tap font-bold text-[14px]">クリア</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="4">4</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="5">5</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="6">6</button>
@@ -374,12 +374,11 @@
             showToast("数値をコピーしました: " + temp.value);
         }
 
-        function getRawCoords(e) {
-            const rect = canvas.getBoundingClientRect();
-            const t = (e.touches && e.touches.length > 0)
-                ? e.touches[0]
-                : ((e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e);
-            return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+        function getRawCoords(e) { 
+            const rect = canvas.getBoundingClientRect(); 
+            const t = (e.touches && e.touches.length > 0) ? e.touches[0] : 
+                      (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e; 
+            return { x: t.clientX - rect.left, y: t.clientY - rect.top }; 
         }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
         function s2w(s) { return { x: (s.x - cameraX) / zoom, y: (s.y - cameraY) / zoom }; }
@@ -390,12 +389,13 @@
         }
         function saveState() { const state = { points: JSON.parse(JSON.stringify(points)), manualLengths: {...manualLengths}, fixedAngles: {...fixedAngles}, isClosed, ppx, globalBaseAngle, globalIsCW }; actionHistory.push(state); if (actionHistory.length > 50) actionHistory.shift(); }
         function undo() { if (actionHistory.length === 0) return; const state = actionHistory.pop(); points = state.points; manualLengths = state.manualLengths; fixedAngles = state.fixedAngles; isClosed = state.isClosed; ppx = state.ppx; globalBaseAngle = state.globalBaseAngle; globalIsCW = state.globalIsCW; draw(); }
-        function resize() {
-            if (!canvas) return;
-            const rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-            draw();
+        
+        function resize() { 
+            if (!canvas) return; 
+            const rect = canvas.parentElement.getBoundingClientRect(); 
+            canvas.width = rect.width; 
+            canvas.height = rect.height; 
+            draw(); 
         }
 
         function calculateTheoreticalArea() {
@@ -440,6 +440,7 @@
             points.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
             const pad = 60;
             const w = maxX - minX || 100, h = maxY - minY || 100;
+            
             zoom = Math.min((canvas.width - pad*2) / w, (canvas.height - pad*2) / h);
             cameraX = canvas.width / 2 - ((minX + maxX) / 2) * zoom;
             cameraY = canvas.height / 2 - ((minY + maxY) / 2) * zoom;
@@ -447,7 +448,8 @@
         }
 
         function draw() {
-            if (!ctx) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!ctx) return; 
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (gridBg) { const s = BASE_DOT_PITCH * zoom; gridBg.style.backgroundSize = `${s}px ${s}px`; gridBg.style.backgroundPosition = `${cameraX}px ${cameraY}px`; }
             if (points.length === 0) return;
             if (isClosed) {
@@ -495,22 +497,41 @@
             const slope = parseFloat(slopeInput.value) || 0;
             const base = parseFloat(baseDimInput.value) || 0;
             if (base <= 0) {
-                hypotenuseResult.innerText = "0㎜";
+                hypotenuseResult.innerText = "0.00mm";
                 return;
             }
             const angleRad = Math.atan(slope / 100);
             const hypotenuse = base / Math.cos(angleRad);
-            hypotenuseResult.innerText = Math.round(hypotenuse) + "㎜";
+            hypotenuseResult.innerText = hypotenuse.toFixed(2) + "mm";
         }
 
         function handleStart(e) {
-            const raw = getRawCoords(e); startRawPos = {x: raw.x, y: raw.y}; lastRawPos = raw; hasMoved = false; longPressTriggered = false; isPanning = false;
+            const raw = getRawCoords(e); 
+            startRawPos = {x: raw.x, y: raw.y}; 
+            lastRawPos = raw; 
+            hasMoved = false; 
+            longPressTriggered = false; 
+            isPanning = false;
             if (e.target.id === 'canvas' && e.cancelable) e.preventDefault();
-            if (!isClosed) { saveState(); const world = s2w(raw); const snapped = {x: Math.round(world.x), y: Math.round(world.y)}; if (points.length >= 3 && Math.hypot(raw.x - w2s(points[0]).x, raw.y - w2s(points[0]).y) < 50) { finalizeDrawing(); } else { points.push(snapped); draw(); } return; }
+            
+            if (!isClosed) { 
+                saveState(); 
+                const world = s2w(raw); 
+                const snapped = {x: world.x, y: world.y}; 
+                if (points.length >= 3 && Math.hypot(raw.x - w2s(points[0]).x, raw.y - w2s(points[0]).y) < 50) { 
+                    finalizeDrawing(); 
+                } else { 
+                    points.push(snapped); 
+                    draw(); 
+                } 
+                return; 
+            }
+            
             for (let i = 0; i < points.length; i++) { 
                 const p1 = w2s(points[i]), p2 = w2s(points[(i+1)%points.length]); const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
                 if (Math.hypot(raw.x - mx, raw.y - my) < 35) { targetEdgeIdx = i; return; }
             }
+            
             const vIdx = points.findIndex(p => Math.hypot(raw.x - w2s(p).x, raw.y - w2s(p).y) < 30);
             if (vIdx !== -1) {
                 targetVertexIdx = vIdx; pressProgress.style.opacity = '1'; let start = Date.now();
@@ -556,7 +577,7 @@
             if (activeMode === 'edge') { modalTitle.innerText = "寸法の入力"; modalUnit.innerText = "m"; }
             else if (activeMode === 'angle') { modalTitle.innerText = "角度の入力"; modalUnit.innerText = "°"; }
             else if (activeMode === 'slope') { modalTitle.innerText = "勾配の入力"; modalUnit.innerText = "mm"; }
-            else if (activeMode === 'baseDim') { modalTitle.innerText = "直線の寸法の入力"; modalUnit.innerText = "㎜"; }
+            else if (activeMode === 'baseDim') { modalTitle.innerText = "直線の寸法の入力"; modalUnit.innerText = "mm"; }
 
             const getA = (idx) => {
                 const prev = points[(idx-1+points.length)%points.length], curr = points[idx], next = points[(idx+1)%points.length];
@@ -608,7 +629,7 @@
             document.getElementById('hypotenuseResultBox').onclick = (e) => { e.stopPropagation(); copyText(hypotenuseResult.innerText); };
 
             document.querySelectorAll('.numpad-btn').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); const val = btn.getAttribute('data-val'); if (isFirstInput) { currentInputValue = val; isFirstInput = false; } else { if (val === '.' && currentInputValue.includes('.')) return; if (currentInputValue === '0' && val !== '.') currentInputValue = val; else currentInputValue += val; } updateModalDisplay(); }; });
-            document.getElementById('numpadClear').onclick = (e) => { e.stopPropagation(); currentInputValue = ""; isFirstInput = false; updateModalDisplay(); };
+            document.getElementById('numpadClear').onclick = (e) => { e.stopPropagation(); currentInputValue = "0"; isFirstInput = true; updateModalDisplay(); };
             
             document.getElementById('saveBtn').onclick = (e) => { 
                 e.stopPropagation(); 
@@ -674,9 +695,7 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            window.addEventListener('resize', resize);
-            resize();
-            setTimeout(resize, 200);
+            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
         };
 
         function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'block'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
