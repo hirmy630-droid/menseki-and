@@ -17,19 +17,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            --safe-top: 0px;
-            --safe-bottom: 0px;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
         }
 
         body { 
             background-color: #000000; 
             color: #FFFFFF;
             margin: 0;
-            height: 100vh; 
+            height: 100dvh; 
             font-size: 16px; 
             -webkit-tap-highlight-color: transparent;
             overflow: hidden;
-            position: relative;
+            position: fixed;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -254,7 +254,7 @@
                             <input type="text" id="baseDimInput" placeholder="直線距離(mm)" readonly inputmode="none" class="w-full h-9 rounded-lg text-base px-3 font-bold text-black bg-white border-none focus:ring-1 focus:ring-black cursor-pointer">
                         </div>
                         <div id="hypotenuseResultBox" class="flex items-center justify-center min-w-[75px] bg-[#5E5CE6] h-9 rounded-lg border border-black/5 shadow-sm px-1 cursor-pointer active:opacity-80">
-                            <span id="hypotenuseResult" class="text-sm font-black text-white tabular-nums">0.00mm</span>
+                            <span id="hypotenuseResult" class="text-sm font-black text-white tabular-nums">0.00m</span>
                         </div>
                     </div>
                 </div>
@@ -393,10 +393,12 @@
         function resize() { 
             if (!canvas) return; 
             const rect = canvas.parentElement.getBoundingClientRect(); 
-            canvas.width = rect.width; 
-            canvas.height = rect.height; 
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr; 
+            canvas.height = rect.height * dpr; 
             canvas.style.width = `${rect.width}px`;
             canvas.style.height = `${rect.height}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             draw(); 
         }
 
@@ -501,12 +503,13 @@
             const slope = parseFloat(slopeInput.value) || 0;
             const base = parseFloat(baseDimInput.value) || 0;
             if (base <= 0) {
-                hypotenuseResult.innerText = "0.00mm";
+                hypotenuseResult.innerText = "0.00m";
                 return;
             }
             const angleRad = Math.atan(slope / 100);
-            const hypotenuse = base / Math.cos(angleRad);
-            hypotenuseResult.innerText = hypotenuse.toFixed(2) + "mm";
+            const hypotenuse_mm = base / Math.cos(angleRad);
+            const hypotenuse_m = hypotenuse_mm / 1000;
+            hypotenuseResult.innerText = hypotenuse_m.toFixed(2) + "m";
         }
 
         function handleStart(e) {

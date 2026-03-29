@@ -1,4 +1,4 @@
-const CACHE_NAME = 'area-calc-pwa-v8';
+const CACHE_NAME = 'area-calc-pwa-v3-20260330';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -32,20 +32,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  const accept = event.request.headers.get('accept') || '';
-  const isHtml = event.request.mode === 'navigate' || accept.includes('text/html');
+  const url = new URL(event.request.url);
+  const isNavigation = event.request.mode === 'navigate';
+  const isAppShell = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
 
-  if (isHtml) {
+  if (isNavigation || isAppShell) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, copy))
+            .then((cache) => cache.put('./index.html', copy))
             .catch(() => {});
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
@@ -61,7 +62,8 @@ self.addEventListener('fetch', (event) => {
             .then((cache) => cache.put(event.request, copy))
             .catch(() => {});
           return response;
-        });
+        })
+        .catch(() => caches.match('./index.html'));
     })
   );
 });
