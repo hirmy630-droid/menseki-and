@@ -1,4 +1,4 @@
-const CACHE_NAME = 'area-calc-pwa-v2';
+const CACHE_NAME = 'area-calc-pwa-v7';
 const CORE_ASSETS = [
   './',
   './index.html',
