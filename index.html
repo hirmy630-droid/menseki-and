@@ -83,7 +83,7 @@
         
         .modal { 
             display: none; 
-            position: relative; 
+            position: fixed; 
             inset: 0; 
             background: rgba(0, 0, 0, 0.9); 
             align-items: flex-start; 
@@ -131,7 +131,7 @@
         }
         
         #pressProgress { 
-            position: relative; 
+            position: fixed; 
             top: 0; 
             left: 0; 
             height: 4px; 
@@ -395,6 +395,8 @@
             const rect = canvas.parentElement.getBoundingClientRect(); 
             canvas.width = rect.width; 
             canvas.height = rect.height; 
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
             draw(); 
         }
 
@@ -441,15 +443,17 @@
             const pad = 60;
             const w = maxX - minX || 100, h = maxY - minY || 100;
             
-            zoom = Math.min((canvas.width - pad*2) / w, (canvas.height - pad*2) / h);
-            cameraX = canvas.width / 2 - ((minX + maxX) / 2) * zoom;
-            cameraY = canvas.height / 2 - ((minY + maxY) / 2) * zoom;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            zoom = Math.min((rect.width - pad*2) / w, (rect.height - pad*2) / h);
+            cameraX = rect.width / 2 - ((minX + maxX) / 2) * zoom;
+            cameraY = rect.height / 2 - ((minY + maxY) / 2) * zoom;
             draw();
         }
 
         function draw() {
             if (!ctx) return; 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const rect = canvas.parentElement.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
             if (gridBg) { const s = BASE_DOT_PITCH * zoom; gridBg.style.backgroundSize = `${s}px ${s}px`; gridBg.style.backgroundPosition = `${cameraX}px ${cameraY}px`; }
             if (points.length === 0) return;
             if (isClosed) {
