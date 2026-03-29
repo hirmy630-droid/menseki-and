@@ -19,20 +19,29 @@
         :root {
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
+            --app-height: 100vh;
+        }
+
+        html {
+            height: 100%;
+            overflow: hidden;
+            background: #000000;
         }
 
         body { 
             background-color: #000000; 
             color: #FFFFFF;
             margin: 0;
-            height: 100dvh; 
+            width: 100%;
+            height: var(--app-height);
+            min-height: var(--app-height);
             font-size: 16px; 
             -webkit-tap-highlight-color: transparent;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
+            position: relative;
             display: flex;
             flex-direction: column;
+            overscroll-behavior: none;
         }
         
         canvas { 
@@ -376,7 +385,16 @@
             showToast("数値をコピーしました: " + temp.value);
         }
 
-        function getRawCoords(e) { const rect = canvas.getBoundingClientRect(); const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e; return { x: t.clientX - rect.left, y: t.clientY - rect.top }; }
+        function getRawCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+            const scaleX = rect.width ? canvas.width / rect.width : 1;
+            const scaleY = rect.height ? canvas.height / rect.height : 1;
+            return {
+                x: (t.clientX - rect.left) * scaleX,
+                y: (t.clientY - rect.top) * scaleY
+            };
+        }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
         function s2w(s) { return { x: (s.x - cameraX) / zoom, y: (s.y - cameraY) / zoom }; }
         function distToSegment(p, v, w) {
@@ -386,7 +404,24 @@
         }
         function saveState() { const state = { points: JSON.parse(JSON.stringify(points)), manualLengths: {...manualLengths}, fixedAngles: {...fixedAngles}, isClosed, ppx, globalBaseAngle, globalIsCW }; actionHistory.push(state); if (actionHistory.length > 50) actionHistory.shift(); }
         function undo() { if (actionHistory.length === 0) return; const state = actionHistory.pop(); points = state.points; manualLengths = state.manualLengths; fixedAngles = state.fixedAngles; isClosed = state.isClosed; ppx = state.ppx; globalBaseAngle = state.globalBaseAngle; globalIsCW = state.globalIsCW; draw(); }
-        function resize() { if (!canvas) return; const rect = canvas.parentElement.getBoundingClientRect(); canvas.width = rect.width; canvas.height = rect.height; draw(); }
+        function updateAppHeight() {
+            const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            document.documentElement.style.setProperty('--app-height', `${Math.round(h)}px`);
+        }
+
+        function resize() {
+            if (!canvas) return;
+            updateAppHeight();
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.round(rect.width * ratio);
+            canvas.height = Math.round(rect.height * ratio);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(ratio, ratio);
+            draw();
+        }
 
         function calculateTheoreticalArea() {
             if (points.length < 3) return 0;
@@ -664,7 +699,18 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            window.addEventListener('resize', resize);
+            window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+            window.addEventListener('pageshow', () => setTimeout(resize, 50));
+            window.addEventListener('load', () => setTimeout(resize, 50));
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', resize);
+                window.visualViewport.addEventListener('scroll', resize);
+            }
+            updateAppHeight();
+            resize();
+            setTimeout(resize, 100);
+            setTimeout(resize, 300);
         };
 
         function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'block'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
