@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="面積計算">
-    <link rel="manifest" href="./manifest.webmanifest?v=20260330-scrollfix2">
-    <link rel="apple-touch-icon" href="./icon-512.png?v=20260330-scrollfix2">
-    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png?v=20260330-scrollfix2">
+    <link rel="manifest" href="./manifest.webmanifest?v=20260330-final">
+    <link rel="apple-touch-icon" href="./icon-512.png?v=20260330-final">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png?v=20260330-final">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -18,25 +18,18 @@
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
-        html, body {
-            margin: 0;
-            width: 100%;
-            min-height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-        }
-
-        body {
-            background-color: #000000;
+        body { 
+            background-color: #000000; 
             color: #FFFFFF;
-            min-height: 100dvh;
-            font-size: 16px;
+            margin: 0;
+            height: 100dvh; 
+            font-size: 16px; 
             -webkit-tap-highlight-color: transparent;
-            -webkit-text-size-adjust: 100%;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
             display: flex;
             flex-direction: column;
-            position: relative;
         }
         
         canvas { 
@@ -54,10 +47,7 @@
             flex-direction: column;
             flex: 1;
             width: 100%;
-            min-height: 100dvh;
-            min-height: calc(var(--vvh, 1vh) * 100);
-            height: calc(var(--vvh, 1vh) * 100);
-            overflow: hidden;
+            height: 100%;
         }
 
         .tab-bar { 
@@ -88,17 +78,16 @@
 
         header { background: #1C1C1E; flex-shrink: 0; }
         
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            align-items: center;
-            justify-content: center;
-            z-index: 200;
-            backdrop-filter: blur(15px);
-            padding: calc(var(--safe-top) + 12px) 16px calc(var(--safe-bottom) + 12px);
-            box-sizing: border-box;
+        .modal { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0, 0, 0, 0.9); 
+            align-items: flex-start; 
+            justify-content: center; 
+            z-index: 200; 
+            backdrop-filter: blur(15px); 
+            padding-top: 5vh; 
         }
         .modal.active { display: flex; }
         
@@ -151,23 +140,7 @@
             pointer-events: none; 
         }
 
-        .tab-view {
-            min-height: 0;
-            min-width: 0;
-        }
-
-        #historyView {
-            flex: 1 1 auto;
-            min-height: 0;
-            height: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior-y: contain;
-            touch-action: pan-y;
-            background: #000;
-            padding: 12px;
-        }
+        #historyView { overflow-y: auto; background: #000; padding: 12px; }
         .history-card { background: #1C1C1E; border-radius: 18px; padding: 14px; margin-bottom: 12px; border: 1px solid #2C2C2E; }
         .memo-input { width: 100%; background: transparent; border: none; color: #8E8E93; font-size: 14px; margin-bottom: 8px; font-weight: bold; }
 
@@ -189,7 +162,7 @@
             <div id="tabHistory" class="tab-item" onclick="switchTab('history')">保存済み</div>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div class="flex-1 flex flex-col overflow-hidden">
             <div id="drawView" class="tab-view active flex flex-col flex-1 overflow-hidden">
                 <header class="p-2 border-b border-white/5">
                     <div class="flex justify-center w-full mb-2">
@@ -245,7 +218,7 @@
                 <div style="height: var(--safe-bottom); background: #1C1C1E;"></div>
             </div>
 
-            <div id="historyView" class="tab-view scrollbar-hide flex-1" style="display:none;">
+            <div id="historyView" class="tab-view scrollbar-hide flex flex-col flex-1 min-h-0 w-full" style="display:none;">
                 <div class="sticky top-0 z-50 bg-black/80 backdrop-blur-md px-4 py-3 border-b border-white/10 shadow-lg">
                     <div class="flex justify-between items-center bg-[#1C1C1E] p-3 rounded-2xl border border-white/5">
                         <div class="flex flex-col">
@@ -257,7 +230,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="historyList" class="flex flex-col p-4"></div>
+                <div id="historyList" class="flex flex-col p-4 w-full min-w-0"></div>
             </div>
         </div>
     </div>
@@ -351,11 +324,6 @@
         let pressTimer = null, longPressTriggered = false, targetVertexIdx = null, targetEdgeIdx = null;
 
         function persistData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData)); } catch(e) {} }
-
-        function syncViewportHeight() {
-            const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.01;
-            document.documentElement.style.setProperty('--vvh', `${vh}px`);
-        }
         function showToast(msg) { const toast = document.getElementById('toast'); if (!toast) return; toast.innerText = msg; toast.style.opacity = '1'; setTimeout(() => { toast.style.opacity = '0'; }, 2000); }
         function getRawCoords(e) { const rect = canvas.getBoundingClientRect(); const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e; return { x: t.clientX - rect.left, y: t.clientY - rect.top }; }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
@@ -610,53 +578,15 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            syncViewportHeight();
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', () => { syncViewportHeight(); resize(); });
-                window.visualViewport.addEventListener('scroll', () => { syncViewportHeight(); resize(); });
-            }
-            window.addEventListener('resize', () => { syncViewportHeight(); resize(); });
-            resize();
-            setTimeout(() => { syncViewportHeight(); resize(); }, 200);
-            setTimeout(() => { syncViewportHeight(); resize(); }, 800);
+            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
         };
 
-        function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'flex'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
+        function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { const historyView = document.getElementById('historyView'); historyView.style.display = 'flex'; historyView.style.flexDirection = 'column'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
         function loadHistory(idx) { const data = savedData[idx]; if (!data || !data.points) { showToast("復元用データがありません"); return; } saveState(); points = JSON.parse(JSON.stringify(data.points)); manualLengths = {...data.manualLengths}; fixedAngles = {...data.fixedAngles}; isClosed = data.isClosed; ppx = data.ppx; globalBaseAngle = data.globalBaseAngle; globalIsCW = data.globalIsCW; slopeInput.value = data.slopeValue || ""; cameraX = data.cameraX || 0; cameraY = data.cameraY || 0; zoom = data.zoom || 1.0; slopeInput.oninput(); switchTab('draw'); draw(); showToast("データを読み込みました"); }
         function renderHistory() { const list = document.getElementById('historyList'); const totalDisplay = document.getElementById('totalAreaDisplay'); const total = savedData.reduce((sum, data) => sum + (parseFloat(data.area) || 0), 0); if (totalDisplay) totalDisplay.innerText = total.toFixed(2); if (savedData.length === 0) { list.innerHTML = `<div class="text-center text-[#8E8E93] py-20 font-bold">まだ保存されたデータはありません</div>`; return; } list.innerHTML = savedData.slice().reverse().map((data, idx) => { const actualIdx = savedData.length - 1 - idx; return `<div class="history-card"><input type="text" class="memo-input" placeholder="メモを入力..." value="${data.memo || ''}" onchange="updateMemo(${actualIdx}, this.value)"><div class="flex justify-between items-center mb-2 px-1"><span class="text-[#8E8E93] text-xs font-bold">${data.time}</span><span class="text-white font-black text-lg">${data.area} m²</span></div><div onclick="loadHistory(${actualIdx})" class="active:opacity-70 transition-opacity"><img src="${data.img}" class="w-full rounded-xl border border-white/10 mb-3 bg-[#000]"><div class="text-center text-[11px] text-[#5E5CE6] font-bold mb-2 uppercase tracking-widest">タップで編集を再開</div></div><div class="flex gap-2"><button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] text-[#FF453A] rounded-xl font-bold text-sm btn-tap">削除</button></div></div>`; }).join(''); }
         function updateMemo(idx, val) { savedData[idx].memo = val; persistData(); showToast("メモを保存しました"); }
         function deleteHistory(idx) { deleteTargetIdx = idx; deleteConfirmModal.classList.add('active'); }
         function updateModalDisplay() { const displayEl = document.getElementById('fakeInputCursor'); displayEl.innerText = currentInputValue || "0"; if (isFirstInput) { displayEl.classList.remove('bg-[#5E5CE6]'); displayEl.classList.add('text-[#5E5CE6]'); displayEl.classList.remove('text-white'); } else { displayEl.classList.remove('text-[#5E5CE6]'); displayEl.classList.add('text-white'); } }
-
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                try {
-                    const reg = await navigator.serviceWorker.register('./sw.js?v=20260330-scrollfix2', { scope: './' });
-                    if (reg.waiting) {
-                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    }
-                    reg.addEventListener('updatefound', () => {
-                        const nw = reg.installing;
-                        if (!nw) return;
-                        nw.addEventListener('statechange', () => {
-                            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                                nw.postMessage({ type: 'SKIP_WAITING' });
-                            }
-                        });
-                    });
-                    let refreshing = false;
-                    navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        if (refreshing) return;
-                        refreshing = true;
-                        window.location.reload();
-                    });
-                } catch (err) {
-                    console.error('Service Worker registration failed:', err);
-                }
-            });
-        }
-
     </script>
 </body>
 </html>
