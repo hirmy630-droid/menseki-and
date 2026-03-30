@@ -1,4 +1,4 @@
-const CACHE_NAME = 'area-calc-pwa-v8';
+const CACHE_NAME = 'area-calc-pwa-v5';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -19,7 +19,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
   );
@@ -29,9 +31,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+  const isSameOrigin = url.origin === self.location.origin;
+  const isNavigation = event.request.mode === 'navigate';
 
-  if (event.request.mode === 'navigate') {
+  if (!isSameOrigin) return;
+
+  if (isNavigation) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -47,11 +52,13 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
-        return response;
-      });
+
+      return fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+          return response;
+        });
     })
   );
 });
