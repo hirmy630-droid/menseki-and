@@ -3,7 +3,7 @@
   "name": "面積計算アプリ",
   "short_name": "面積計算",
   "description": "ホーム画面から全画面表示で使える面積計算アプリ",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=20260330-scrollfix2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
@@ -11,25 +11,25 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "./icon-192.png?v=20260330-touchfix2",
+      "src": "./icon-192.png?v=20260330-scrollfix2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icon-512.png?v=20260330-touchfix2",
+      "src": "./icon-512.png?v=20260330-scrollfix2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icon-maskable-192.png?v=20260330-touchfix2",
+      "src": "./icon-maskable-192.png?v=20260330-scrollfix2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./icon-maskable-512.png?v=20260330-touchfix2",
+      "src": "./icon-maskable-512.png?v=20260330-scrollfix2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
