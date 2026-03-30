@@ -1,4 +1,4 @@
-const CACHE_NAME = 'area-calc-pwa-v8';
+const CACHE_NAME = 'area-calc-pwa-v10';
 const APP_SHELL = [
   './',
   './index.html',
