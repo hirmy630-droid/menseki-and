@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="面積計算">
-    <link rel="manifest" href="./manifest.webmanifest?v=20260330-cssonly-fix1">
-    <link rel="apple-touch-icon" href="./icon-512.png?v=20260330-cssonly-fix1">
-    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png?v=20260330-cssonly-fix1">
+    <link rel="manifest" href="./manifest.webmanifest?v=20260330-touchfix-index-only">
+    <link rel="apple-touch-icon" href="./icon-512.png?v=20260330-touchfix-index-only">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png?v=20260330-touchfix-index-only">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -148,18 +148,7 @@
             pointer-events: none; 
         }
 
-        #historyView {
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-y;
-            background: #000;
-            padding: 12px;
-            min-height: 0;
-            min-width: 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
+        #historyView { overflow-y: auto; background: #000; padding: 12px; }
         .history-card { background: #1C1C1E; border-radius: 18px; padding: 14px; margin-bottom: 12px; border: 1px solid #2C2C2E; }
         .memo-input { width: 100%; background: transparent; border: none; color: #8E8E93; font-size: 14px; margin-bottom: 8px; font-weight: bold; }
 
@@ -237,7 +226,7 @@
                 <div style="height: var(--safe-bottom); background: #1C1C1E;"></div>
             </div>
 
-            <div id="historyView" class="tab-view scrollbar-hide flex flex-col flex-1 min-h-0 min-w-0 w-full" style="display:none;">
+            <div id="historyView" class="tab-view scrollbar-hide flex-1" style="display:none;">
                 <div class="sticky top-0 z-50 bg-black/80 backdrop-blur-md px-4 py-3 border-b border-white/10 shadow-lg">
                     <div class="flex justify-between items-center bg-[#1C1C1E] p-3 rounded-2xl border border-white/5">
                         <div class="flex flex-col">
@@ -249,7 +238,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="historyList" class="flex flex-col p-4 w-full min-w-0"></div>
+                <div id="historyList" class="flex flex-col p-4"></div>
             </div>
         </div>
     </div>
@@ -343,6 +332,11 @@
         let pressTimer = null, longPressTriggered = false, targetVertexIdx = null, targetEdgeIdx = null;
 
         function persistData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData)); } catch(e) {} }
+
+        function syncViewportHeight() {
+            const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.01;
+            document.documentElement.style.setProperty('--vvh', `${vh}px`);
+        }
         function showToast(msg) { const toast = document.getElementById('toast'); if (!toast) return; toast.innerText = msg; toast.style.opacity = '1'; setTimeout(() => { toast.style.opacity = '0'; }, 2000); }
         function getRawCoords(e) { const rect = canvas.getBoundingClientRect(); const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e; return { x: t.clientX - rect.left, y: t.clientY - rect.top }; }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
@@ -597,10 +591,18 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            syncViewportHeight();
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => { syncViewportHeight(); resize(); });
+                window.visualViewport.addEventListener('scroll', () => { syncViewportHeight(); resize(); });
+            }
+            window.addEventListener('resize', () => { syncViewportHeight(); resize(); });
+            resize();
+            setTimeout(() => { syncViewportHeight(); resize(); }, 200);
+            setTimeout(() => { syncViewportHeight(); resize(); }, 800);
         };
 
-        function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { const drawView = document.getElementById('drawView'); drawView.style.display = 'flex'; drawView.style.flexDirection = 'column'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { const historyView = document.getElementById('historyView'); historyView.style.display = 'flex'; historyView.style.flexDirection = 'column'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
+        function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'block'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
         function loadHistory(idx) { const data = savedData[idx]; if (!data || !data.points) { showToast("復元用データがありません"); return; } saveState(); points = JSON.parse(JSON.stringify(data.points)); manualLengths = {...data.manualLengths}; fixedAngles = {...data.fixedAngles}; isClosed = data.isClosed; ppx = data.ppx; globalBaseAngle = data.globalBaseAngle; globalIsCW = data.globalIsCW; slopeInput.value = data.slopeValue || ""; cameraX = data.cameraX || 0; cameraY = data.cameraY || 0; zoom = data.zoom || 1.0; slopeInput.oninput(); switchTab('draw'); draw(); showToast("データを読み込みました"); }
         function renderHistory() { const list = document.getElementById('historyList'); const totalDisplay = document.getElementById('totalAreaDisplay'); const total = savedData.reduce((sum, data) => sum + (parseFloat(data.area) || 0), 0); if (totalDisplay) totalDisplay.innerText = total.toFixed(2); if (savedData.length === 0) { list.innerHTML = `<div class="text-center text-[#8E8E93] py-20 font-bold">まだ保存されたデータはありません</div>`; return; } list.innerHTML = savedData.slice().reverse().map((data, idx) => { const actualIdx = savedData.length - 1 - idx; return `<div class="history-card"><input type="text" class="memo-input" placeholder="メモを入力..." value="${data.memo || ''}" onchange="updateMemo(${actualIdx}, this.value)"><div class="flex justify-between items-center mb-2 px-1"><span class="text-[#8E8E93] text-xs font-bold">${data.time}</span><span class="text-white font-black text-lg">${data.area} m²</span></div><div onclick="loadHistory(${actualIdx})" class="active:opacity-70 transition-opacity"><img src="${data.img}" class="w-full rounded-xl border border-white/10 mb-3 bg-[#000]"><div class="text-center text-[11px] text-[#5E5CE6] font-bold mb-2 uppercase tracking-widest">タップで編集を再開</div></div><div class="flex gap-2"><button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] text-[#FF453A] rounded-xl font-bold text-sm btn-tap">削除</button></div></div>`; }).join(''); }
         function updateMemo(idx, val) { savedData[idx].memo = val; persistData(); showToast("メモを保存しました"); }

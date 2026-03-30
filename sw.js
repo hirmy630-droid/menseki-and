@@ -1,12 +1,12 @@
-const CACHE_NAME = 'area-calc-pwa-v13';
+const CACHE_NAME = 'area-calc-pwa-v6';
 const APP_SHELL = [
   './',
   './index.html',
-  './manifest.webmanifest?v=20260330-cssonly-fix1',
-  './icon-192.png?v=20260330-cssonly-fix1',
-  './icon-512.png?v=20260330-cssonly-fix1',
-  './icon-maskable-192.png?v=20260330-cssonly-fix1',
-  './icon-maskable-512.png?v=20260330-cssonly-fix1'
+  './manifest.webmanifest?v=20260330-final',
+  './icon-192.png?v=20260330-final',
+  './icon-512.png?v=20260330-final',
+  './icon-maskable-192.png?v=20260330-final',
+  './icon-maskable-512.png?v=20260330-final'
 ];
 
 self.addEventListener('install', (event) => {
