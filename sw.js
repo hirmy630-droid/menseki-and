@@ -1,102 +1,64 @@
-const CACHE_NAME = 'area-calc-pwa-v6';
-const APP_SHELL = [
+const CACHE_NAME = 'area-calc-pwa-v4';
+const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest?v=20260330-final',
-  './icon-192.png?v=20260330-final',
-  './icon-512.png?v=20260330-final',
-  './icon-maskable-192.png?v=20260330-final',
-  './icon-maskable-512.png?v=20260330-final'
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(CORE_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter((key) => key !== CACHE_NAME)
-        .map((key) => caches.delete(key))
-    );
-    await self.clients.claim();
-  })());
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
+  if (event.request.method !== 'GET') return;
 
-  if (request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isNavigation = event.request.mode === 'navigate';
 
-  const url = new URL(request.url);
-
-  if (url.origin !== self.location.origin) return;
-
-  const isNavigation =
-    request.mode === 'navigate' ||
-    request.destination === 'document';
+  if (!isSameOrigin) return;
 
   if (isNavigation) {
-    event.respondWith((async () => {
-      try {
-        const freshResponse = await fetch(request, { cache: 'no-store' });
-
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put('./index.html', freshResponse.clone());
-
-        return freshResponse;
-      } catch (error) {
-        const cachedIndex = await caches.match('./index.html');
-        if (cachedIndex) return cachedIndex;
-
-        const cachedRequest = await caches.match(request);
-        if (cachedRequest) return cachedRequest;
-
-        throw error;
-      }
-    })());
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
     return;
   }
 
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(request);
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
 
-    const networkFetch = fetch(request, { cache: 'no-store' })
-      .then((response) => {
-        if (response && response.status === 200) {
-          cache.put(request, response.clone()).catch(() => {});
-        }
-        return response;
-      })
-      .catch(() => null);
-
-    if (cached) {
-      event.waitUntil(networkFetch);
-      return cached;
-    }
-
-    const fresh = await networkFetch;
-    if (fresh) return fresh;
-
-    const fallback = await caches.match('./index.html');
-    if (fallback) return fallback;
-
-    return new Response('Offline', {
-      status: 503,
-      statusText: 'Offline'
-    });
-  })());
+      return fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+          return response;
+        });
+    })
+  );
 });
