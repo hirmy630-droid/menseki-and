@@ -1,7 +1,8 @@
 {
+  "id": "./",
   "name": "面積計算アプリ",
   "short_name": "面積計算",
-  "description": "Androidホーム画面ショートカットから全画面表示で使える面積計算アプリ",
+  "description": "ホーム画面から全画面表示で使える面積計算アプリ",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -10,16 +11,28 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "./icon-192.png",
+      "src": "./icon-192.png?v=20260330-final",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icon-512.png",
+      "src": "./icon-512.png?v=20260330-final",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-192.png?v=20260330-final",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon-maskable-512.png?v=20260330-final",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
