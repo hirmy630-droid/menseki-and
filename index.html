@@ -133,7 +133,7 @@
             pointer-events: none; 
         }
 
-        #historyView { overflow-y: auto; background: #000; padding: 12px; }
+        #historyView { overflow-y: auto; background: #000; }
         .history-card { background: #1C1C1E; border-radius: 18px; padding: 14px; margin-bottom: 12px; border: 1px solid #2C2C2E; }
         .memo-input { width: 100%; background: transparent; border: none; color: #8E8E93; font-size: 14px; margin-bottom: 8px; font-weight: bold; }
 
@@ -185,8 +185,8 @@
                             <text x="26" y="38" font-size="14" text-anchor="middle" font-weight="800" fill="currentColor">100</text>
                         </svg>
                     </div>
-                    <div class="flex-1">
-                        <input type="text" id="slopeInput" placeholder="勾配(mm)" class="w-full h-9 rounded-lg text-base px-3 font-bold text-black bg-white border-none focus:ring-1 focus:ring-black">
+                    <div class="flex-1" onclick="openSlopeInputModal()">
+                        <input type="text" id="slopeInput" placeholder="勾配(mm)" readonly class="w-full h-9 rounded-lg text-base px-3 font-bold text-black bg-white border-none focus:ring-1 focus:ring-black cursor-pointer">
                     </div>
                     <div class="flex items-center justify-center min-w-[65px] bg-white h-9 rounded-lg border border-black/5 shadow-sm px-1">
                         <span id="slopeResult" class="text-sm font-black text-black tabular-nums">0.0°</span>
@@ -212,7 +212,19 @@
             </div>
 
             <div id="historyView" class="tab-view scrollbar-hide flex-1" style="display:none;">
-                <div id="historyList" class="flex flex-col"></div>
+                <!-- 合計表示ヘッダー -->
+                <div class="sticky top-0 z-50 bg-black/80 backdrop-blur-md px-4 py-3 border-b border-white/10 shadow-lg">
+                    <div class="flex justify-between items-center bg-[#1C1C1E] p-3 rounded-2xl border border-white/5">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-black text-system-indigo tracking-tight">全保存データの合計</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="totalAreaDisplay" class="text-2xl font-black tabular-nums text-white">0.00</span>
+                            <span class="text-sm font-bold text-[#8E8E93]">m²</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="historyList" class="flex flex-col p-4"></div>
             </div>
         </div>
     </div>
@@ -237,8 +249,9 @@
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="7">7</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="8">8</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="9">9</button>
-                    <button type="button" id="numpadBS" class="bg-[#48484A] text-white rounded-xl h-[3.1rem] flex items-center justify-center btn-tap">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0 -2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
+                    <button type="button" id="numpadBS" class="bg-[#48484A] text-white rounded-xl h-[3.1rem] flex flex-col items-center justify-center btn-tap">
+                        <span class="text-[10px] font-black leading-none mb-0.5 opacity-60">クリア</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg>
                     </button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="4">4</button>
                     <button type="button" class="numpad-btn bg-[#2C2C2E] text-white rounded-xl h-[3.1rem] font-bold text-2xl btn-tap" data-val="5">5</button>
@@ -272,13 +285,30 @@
         </div>
     </div>
 
+    <!-- 削除確認用カスタムモーダル -->
+    <div id="deleteConfirmModal" class="modal px-4">
+        <div class="bg-[#1C1C1E] rounded-[2rem] w-full max-w-[280px] shadow-2xl border border-white/10 overflow-hidden mt-[20vh]">
+            <div class="p-6 flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-system-red/10 rounded-full flex items-center justify-center mb-4 text-system-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </div>
+                <h3 class="text-lg font-black text-white mb-2">データを削除しますか？</h3>
+                <p class="text-sm text-[#8E8E93] font-bold mb-6">この操作は取り消せません。</p>
+                <div class="flex flex-col w-full gap-2">
+                    <button id="confirmDeleteBtn" class="w-full py-3.5 bg-system-red text-white rounded-xl font-black btn-tap">削除する</button>
+                    <button id="cancelDeleteBtn" class="w-full py-3.5 bg-system-gray text-white rounded-xl font-black btn-tap">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const STORAGE_KEY = 'area_calc_data_v46';
         const LONG_PRESS_DURATION = 450; 
         const BASE_DOT_PITCH = 22.4; 
 
-        let canvas, ctx, areaEl, inputModal, fitBtn, slopeInput, slopeResult, exportBtn, gridBg, pressProgress;
-        let points = [], manualLengths = {}, fixedAngles = {}, isClosed = false, selectedIdx = -1, activeMode = 'edge';
+        let canvas, ctx, areaEl, inputModal, deleteConfirmModal, fitBtn, slopeInput, slopeResult, exportBtn, gridBg, pressProgress;
+        let points = [], manualLengths = {}, fixedAngles = {}, isClosed = false, selectedIdx = -1, activeMode = 'edge', deleteTargetIdx = -1;
         let ppx = BASE_DOT_PITCH; 
 
         let cameraX = 0, cameraY = 0, zoom = 1.0, startRawPos = {x: 0, y: 0}, lastRawPos = {x: 0, y: 0}, hasMoved = false;
@@ -289,7 +319,18 @@
 
         function persistData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData)); } catch(e) {} }
         function showToast(msg) { const toast = document.getElementById('toast'); if (!toast) return; toast.innerText = msg; toast.style.opacity = '1'; setTimeout(() => { toast.style.opacity = '0'; }, 2000); }
-        function getRawCoords(e) { const rect = canvas.getBoundingClientRect(); const t = (e.touches && e.touches.length > 0) ? e.touches[0] : e; return { x: t.clientX - rect.left, y: t.clientY - rect.top }; }
+        function getRawCoords(e) { 
+            const rect = canvas.getBoundingClientRect(); 
+            const t = (e.touches && e.touches.length > 0) ? e.touches[0] : 
+                      (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e; 
+            const dpr = window.devicePixelRatio || 1;
+            const scaleX = (canvas.width / dpr) / (rect.width || 1);
+            const scaleY = (canvas.height / dpr) / (rect.height || 1);
+            return { 
+                x: (t.clientX - rect.left) * scaleX, 
+                y: (t.clientY - rect.top) * scaleY 
+            }; 
+        }
         function w2s(w) { return { x: w.x * zoom + cameraX, y: w.y * zoom + cameraY }; }
         function s2w(s) { return { x: (s.x - cameraX) / zoom, y: (s.y - cameraY) / zoom }; }
         function distToSegment(p, v, w) {
@@ -299,7 +340,17 @@
         }
         function saveState() { const state = { points: JSON.parse(JSON.stringify(points)), manualLengths: {...manualLengths}, fixedAngles: {...fixedAngles}, isClosed, ppx, globalBaseAngle, globalIsCW }; actionHistory.push(state); if (actionHistory.length > 50) actionHistory.shift(); }
         function undo() { if (actionHistory.length === 0) return; const state = actionHistory.pop(); points = state.points; manualLengths = state.manualLengths; fixedAngles = state.fixedAngles; isClosed = state.isClosed; ppx = state.ppx; globalBaseAngle = state.globalBaseAngle; globalIsCW = state.globalIsCW; draw(); }
-        function resize() { if (!canvas) return; const rect = canvas.parentElement.getBoundingClientRect(); canvas.width = rect.width; canvas.height = rect.height; draw(); }
+        function resize() { 
+            if (!canvas) return; 
+            const rect = canvas.parentElement.getBoundingClientRect(); 
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr; 
+            canvas.height = rect.height * dpr; 
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            draw(); 
+        }
 
         function calculateTheoreticalArea() {
             if (points.length < 3) return 0;
@@ -441,6 +492,8 @@
 
         function finalizeDrawing() { saveState(); isClosed = true; globalBaseAngle = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x); let s = 0; for(let i = 0; i < points.length; i++) s += points[i].x * points[(i+1)%points.length].y - points[(i+1)%points.length].x * points[i].y; globalIsCW = s > 0; draw(); }
 
+        function openSlopeInputModal() { activeMode = 'slope'; selectedIdx = -1; openModal(); }
+
         function openModal() {
             document.getElementById('quickAngle').classList.toggle('hidden', activeMode === 'edge'); 
             document.getElementById('modalTitle').innerText = activeMode === 'edge' ? "寸法の入力" : "角度の入力";
@@ -470,11 +523,11 @@
         }
 
         window.onload = function() {
-            canvas = document.getElementById('canvas'); ctx = canvas.getContext('2d'); areaEl = document.getElementById('areaDisplay'); inputModal = document.getElementById('inputModal'); fitBtn = document.getElementById('fitBtn'); slopeInput = document.getElementById('slopeInput'); slopeResult = document.getElementById('slopeResult'); exportBtn = document.getElementById('exportBtn'); gridBg = document.getElementById('gridBg'); pressProgress = document.getElementById('pressProgress');
+            canvas = document.getElementById('canvas'); ctx = canvas.getContext('2d'); areaEl = document.getElementById('areaDisplay'); inputModal = document.getElementById('inputModal'); deleteConfirmModal = document.getElementById('deleteConfirmModal'); fitBtn = document.getElementById('fitBtn'); slopeInput = document.getElementById('slopeInput'); slopeResult = document.getElementById('slopeResult'); exportBtn = document.getElementById('exportBtn'); gridBg = document.getElementById('gridBg'); pressProgress = document.getElementById('pressProgress');
             slopeInput.oninput = () => { const val = parseFloat(slopeInput.value); if (!isNaN(val)) { const deg = Math.atan(val / 100) * 180 / Math.PI; slopeResult.innerText = deg.toFixed(1) + '°'; } else { slopeResult.innerText = '0.0°'; } };
             document.querySelectorAll('.numpad-btn').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); const val = btn.getAttribute('data-val'); if (isFirstInput) { currentInputValue = val; isFirstInput = false; } else { if (val === '.' && currentInputValue.includes('.')) return; if (currentInputValue === '0' && val !== '.') currentInputValue = val; else currentInputValue += val; } updateModalDisplay(); }; });
-            document.getElementById('numpadBS').onclick = (e) => { e.stopPropagation(); if (isFirstInput) { currentInputValue = ""; isFirstInput = false; } else { currentInputValue = currentInputValue.slice(0, -1); } updateModalDisplay(); };
-            document.getElementById('saveBtn').onclick = (e) => { e.stopPropagation(); saveState(); const val = parseFloat(currentInputValue); if (activeMode === 'edge') { if (!isNaN(val) && val > 0) manualLengths[selectedIdx] = val; else delete manualLengths[selectedIdx]; } else { if (!isNaN(val) && val >= 0) fixedAngles[selectedIdx] = val; else delete fixedAngles[selectedIdx]; } inputModal.classList.remove('active'); draw(); };
+            document.getElementById('numpadBS').onclick = (e) => { e.stopPropagation(); currentInputValue = ""; isFirstInput = false; updateModalDisplay(); };
+            document.getElementById('saveBtn').onclick = (e) => { e.stopPropagation(); saveState(); const val = parseFloat(currentInputValue); if (activeMode === 'edge') { if (!isNaN(val) && val > 0) manualLengths[selectedIdx] = val; else delete manualLengths[selectedIdx]; } else if (activeMode === 'angle') { if (!isNaN(val) && val >= 0) fixedAngles[selectedIdx] = val; else delete fixedAngles[selectedIdx]; } else if (activeMode === 'slope') { slopeInput.value = isNaN(val) ? "" : val; slopeInput.oninput(); } inputModal.classList.remove('active'); draw(); };
             document.getElementById('cancelModal').onclick = (e) => { e.stopPropagation(); inputModal.classList.remove('active'); draw(); };
             exportBtn.onclick = () => { if (points.length < 3 || !isClosed) { showToast("図形を閉じてから保存してください"); return; } const dataUrl = canvas.toDataURL("image/png"); savedData.push({ img: dataUrl, area: areaEl.innerText, time: new Date().toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), memo: '', points: JSON.parse(JSON.stringify(points)), manualLengths: {...manualLengths}, fixedAngles: {...fixedAngles}, isClosed, ppx, globalBaseAngle, globalIsCW, slopeValue: slopeInput.value, cameraX, cameraY, zoom }); persistData(); showToast("保存しました"); };
             document.getElementById('undoBtn').onclick = undo;
@@ -484,6 +537,8 @@
             document.getElementById('setQuick90').onclick = () => { currentInputValue = "90"; isFirstInput = false; updateModalDisplay(); document.getElementById('saveBtn').click(); };
             document.getElementById('setQuick270').onclick = () => { currentInputValue = "270"; isFirstInput = false; updateModalDisplay(); document.getElementById('saveBtn').click(); };
             document.getElementById('setQuick45').onclick = () => { currentInputValue = "45"; isFirstInput = false; updateModalDisplay(); document.getElementById('saveBtn').click(); };
+            document.getElementById('cancelDeleteBtn').onclick = () => { deleteConfirmModal.classList.remove('active'); deleteTargetIdx = -1; };
+            document.getElementById('confirmDeleteBtn').onclick = () => { if (deleteTargetIdx !== -1) { savedData.splice(deleteTargetIdx, 1); persistData(); renderHistory(); showToast("削除しました"); } deleteConfirmModal.classList.remove('active'); deleteTargetIdx = -1; };
             
             document.getElementById('executeBtn').onclick = () => {
                 if (!isClosed) { showToast("図形を閉じてから実行してください"); return; }
@@ -527,14 +582,33 @@
                 handleMove(e); 
             }, {passive:false});
             window.addEventListener('touchend', (e) => { handleEnd(); isTouching = false; });
-            window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            const canvasArea = document.querySelector('.canvas-area');
+            if (window.ResizeObserver) {
+                const resizeObserver = new ResizeObserver(() => { resize(); });
+                resizeObserver.observe(canvasArea);
+            } else {
+                window.addEventListener('resize', resize); resize(); setTimeout(resize, 200);
+            }
         };
 
         function switchTab(tab) { document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none'); document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); if (tab === 'draw') { document.getElementById('drawView').style.display = 'flex'; document.getElementById('tabDraw').classList.add('active'); resize(); } else { document.getElementById('historyView').style.display = 'block'; document.getElementById('tabHistory').classList.add('active'); renderHistory(); } }
         function loadHistory(idx) { const data = savedData[idx]; if (!data || !data.points) { showToast("復元用データがありません"); return; } saveState(); points = JSON.parse(JSON.stringify(data.points)); manualLengths = {...data.manualLengths}; fixedAngles = {...data.fixedAngles}; isClosed = data.isClosed; ppx = data.ppx; globalBaseAngle = data.globalBaseAngle; globalIsCW = data.globalIsCW; slopeInput.value = data.slopeValue || ""; cameraX = data.cameraX || 0; cameraY = data.cameraY || 0; zoom = data.zoom || 1.0; slopeInput.oninput(); switchTab('draw'); draw(); showToast("データを読み込みました"); }
-        function renderHistory() { const list = document.getElementById('historyList'); if (savedData.length === 0) { list.innerHTML = `<div class="text-center text-[#8E8E93] py-20 font-bold">まだ保存されたデータはありません</div>`; return; } list.innerHTML = savedData.slice().reverse().map((data, idx) => { const actualIdx = savedData.length - 1 - idx; return `<div class="history-card"><input type="text" class="memo-input" placeholder="メモを入力..." value="${data.memo || ''}" onchange="updateMemo(${actualIdx}, this.value)"><div class="flex justify-between items-center mb-2 px-1"><span class="text-[#8E8E93] text-xs font-bold">${data.time}</span><span class="text-white font-black text-lg">${data.area} m²</span></div><div onclick="loadHistory(${actualIdx})" class="active:opacity-70 transition-opacity"><img src="${data.img}" class="w-full rounded-xl border border-white/10 mb-3 bg-[#000]"><div class="text-center text-[11px] text-[#5E5CE6] font-bold mb-2 uppercase tracking-widest">タップで編集を再開</div></div><div class="flex gap-2"><button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] text-[#FF453A] rounded-xl font-bold text-sm btn-tap">削除</button></div></div>`; }).join(''); }
+        function renderHistory() { 
+            const list = document.getElementById('historyList'); 
+            const totalDisplay = document.getElementById('totalAreaDisplay');
+            const total = savedData.reduce((sum, data) => sum + (parseFloat(data.area) || 0), 0);
+            if (totalDisplay) totalDisplay.innerText = total.toFixed(2);
+            if (savedData.length === 0) { 
+                list.innerHTML = `<div class="text-center text-[#8E8E93] py-20 font-bold">まだ保存されたデータはありません</div>`; 
+                return; 
+            } 
+            list.innerHTML = savedData.slice().reverse().map((data, idx) => { 
+                const actualIdx = savedData.length - 1 - idx; 
+                return `<div class="history-card"><input type="text" class="memo-input" placeholder="メモを入力..." value="${data.memo || ''}" onchange="updateMemo(${actualIdx}, this.value)"><div class="flex justify-between items-center mb-2 px-1"><span class="text-[#8E8E93] text-xs font-bold">${data.time}</span><span class="text-white font-black text-lg">${data.area} m²</span></div><div onclick="loadHistory(${actualIdx})" class="active:opacity-70 transition-opacity"><img src="${data.img}" class="w-full rounded-xl border border-white/10 mb-3 bg-[#000]"><div class="text-center text-[11px] text-[#5E5CE6] font-bold mb-2 uppercase tracking-widest">タップで編集を再開</div></div><div class="flex gap-2"><button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] text-[#FF453A] rounded-xl font-bold text-sm btn-tap">削除</button></div></div>`; 
+            }).join(''); 
+        }
         function updateMemo(idx, val) { savedData[idx].memo = val; persistData(); showToast("メモを保存しました"); }
-        function deleteHistory(idx) { if(confirm("このデータを削除してもよろしいですか？")) { savedData.splice(idx, 1); persistData(); renderHistory(); showToast("削除しました"); } }
+        function deleteHistory(idx) { deleteTargetIdx = idx; deleteConfirmModal.classList.add('active'); }
         function updateModalDisplay() { const displayEl = document.getElementById('fakeInputCursor'); displayEl.innerText = currentInputValue || "0"; if (isFirstInput) { displayEl.classList.remove('bg-[#5E5CE6]'); displayEl.classList.add('text-[#5E5CE6]'); displayEl.classList.remove('text-white'); } else { displayEl.classList.remove('text-[#5E5CE6]'); displayEl.classList.add('text-white'); } }
     </script>
 </body>
