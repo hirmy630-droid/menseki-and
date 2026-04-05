@@ -1,4 +1,4 @@
-const VERSION = '20250405-iphone1';
+const VERSION = '20260405-iphone3';
 const CACHE_NAME = `area-calc-pwa-${VERSION}`;
 const APP_SHELL = [
   './',
@@ -6,7 +6,7 @@ const APP_SHELL = [
   './manifest.json',
   './manifest.webmanifest',
   './apple-touch-icon.png',
-  './apple-touch-icon-180-20250405-iphone1.png'
+  './apple-touch-icon-180-20260405-iphone3.png'
 ];
 
 const RUNTIME_CACHE = 'area-calc-runtime';
