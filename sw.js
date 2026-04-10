@@ -1,10 +1,10 @@
-const CACHE_VERSION = 'touchfix-v2';
+const CACHE_VERSION = 'touchfix-v3';
 const STATIC_CACHE = `area-calc-${CACHE_VERSION}`;
 
 const CORE_ASSETS = [
   './',
-  './index.html?v=touchfix2',
-  './manifest.json?v=touchfix2'
+  './index.html?v=touchfix3',
+  './manifest.json?v=touchfix3'
 ];
 
 self.addEventListener('install', (event) => {
@@ -36,10 +36,10 @@ self.addEventListener('fetch', (event) => {
       try {
         const network = await fetch(req, { cache: 'no-store' });
         const cache = await caches.open(STATIC_CACHE);
-        cache.put('./index.html?v=touchfix2', network.clone());
+        cache.put('./index.html?v=touchfix3', network.clone());
         return network;
       } catch (err) {
-        const cached = await caches.match('./index.html?v=touchfix2');
+        const cached = await caches.match('./index.html?v=touchfix3');
         return cached || Response.error();
       }
     })());

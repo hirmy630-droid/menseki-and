@@ -529,6 +529,7 @@
 
         function fitView() {
             if (points.length === 0) return;
+
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             points.forEach(p => {
                 minX = Math.min(minX, p.x);
@@ -540,9 +541,11 @@
             const size = getCanvasCssSize();
             const isSmallPortrait = window.innerWidth <= 430 && window.innerHeight > window.innerWidth;
 
-            const padX = isSmallPortrait ? 44 : 32;
-            const padTop = isSmallPortrait ? 72 : 52;
-            const padBottom = isSmallPortrait ? 88 : 60;
+            // 前回は余白を取りすぎて小さくなったので調整
+            // タッチ座標には影響しない。自動フィットだけを修正する。
+            const padX = isSmallPortrait ? 22 : 24;
+            const padTop = isSmallPortrait ? 34 : 36;
+            const padBottom = isSmallPortrait ? 42 : 44;
 
             const availableW = Math.max(80, size.width - padX * 2);
             const availableH = Math.max(80, size.height - padTop - padBottom);
@@ -551,13 +554,16 @@
             const h = Math.max(1, maxY - minY);
 
             zoom = Math.min(availableW / w, availableH / h);
-            if (isSmallPortrait) zoom *= 0.9;
+
+            // 小型iPhoneだけごく軽く安全側に振る
+            if (isSmallPortrait) zoom *= 0.975;
 
             const centerX = size.width / 2;
-            const centerY = (padTop + (size.height - padBottom)) / 2;
+            const centerY = size.height / 2;
 
             cameraX = centerX - ((minX + maxX) / 2) * zoom;
             cameraY = centerY - ((minY + maxY) / 2) * zoom;
+
             draw();
         }
 
