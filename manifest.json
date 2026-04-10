@@ -1,19 +1,28 @@
 {
-  "name": "面積計算アプリ",
+  "name": "面積計算",
   "short_name": "面積計算",
-  "description": "iPhone のホーム画面から全画面表示で使う面積計算アプリ",
-  "lang": "ja",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=touchfix1",
   "scope": "./",
-  "id": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "./apple-touch-icon-180-20260405-iphone3.png",
+      "src": "./icon-180.png",
       "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
