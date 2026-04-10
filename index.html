@@ -519,22 +519,54 @@
             draw();
         }
 
+        function getCanvasCssSize() {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                width: rect.width || canvas.clientWidth || canvas.parentElement.clientWidth || window.innerWidth,
+                height: rect.height || canvas.clientHeight || canvas.parentElement.clientHeight || window.innerHeight
+            };
+        }
+
         function fitView() {
             if (points.length === 0) return;
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-            points.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
-            
-            // iPhone 12 miniなどの小型端末向けにマージンを最適化
-            const pad = 45; 
-            const w = maxX - minX || 100, h = maxY - minY || 100;
-            zoom = Math.min((canvas.width - pad * 2) / w, (canvas.height - pad * 2) / h);
-            cameraX = canvas.width / 2 - ((minX + maxX) / 2) * zoom;
-            cameraY = canvas.height / 2 - ((minY + maxY) / 2) * zoom;
+            points.forEach(p => {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x);
+                minY = Math.min(minY, p.y);
+                maxY = Math.max(maxY, p.y);
+            });
+
+            const size = getCanvasCssSize();
+            const isSmallPortrait = window.innerWidth <= 430 && window.innerHeight > window.innerWidth;
+
+            const padX = isSmallPortrait ? 44 : 32;
+            const padTop = isSmallPortrait ? 72 : 52;
+            const padBottom = isSmallPortrait ? 88 : 60;
+
+            const availableW = Math.max(80, size.width - padX * 2);
+            const availableH = Math.max(80, size.height - padTop - padBottom);
+
+            const w = Math.max(1, maxX - minX);
+            const h = Math.max(1, maxY - minY);
+
+            zoom = Math.min(availableW / w, availableH / h);
+            if (isSmallPortrait) zoom *= 0.9;
+
+            const centerX = size.width / 2;
+            const centerY = (padTop + (size.height - padBottom)) / 2;
+
+            cameraX = centerX - ((minX + maxX) / 2) * zoom;
+            cameraY = centerY - ((minY + maxY) / 2) * zoom;
             draw();
         }
 
         function draw() {
-            if (!ctx) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!ctx) return;
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
             if (gridBg) { const s = BASE_DOT_PITCH * zoom; gridBg.style.backgroundSize = `${s}px ${s}px`; gridBg.style.backgroundPosition = `${cameraX}px ${cameraY}px`; }
             if (points.length === 0) return;
             if (isClosed) {
@@ -621,7 +653,9 @@
                     }
                 }
                 applyGeometryUpdate();
-                fitView(); 
+                fitView();
+                setTimeout(fitView, 50);
+                setTimeout(fitView, 180);
                 showToast("図面を整列しました");
             };
             let isTouching = false;

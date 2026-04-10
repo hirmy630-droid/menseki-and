@@ -1,7 +1,7 @@
 {
   "name": "面積計算",
   "short_name": "面積計算",
-  "start_url": "./index.html?v=touchfix1",
+  "start_url": "./index.html?v=touchfix2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
