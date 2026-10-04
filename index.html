@@ -450,7 +450,7 @@
     <script>
         const STORAGE_KEY = 'area_calc_data_v48';
         const LONG_PRESS_DURATION = 450; 
-        const BASE_DOT_PITCH = 22.4; 
+        const BASE_DOT_PITCH = 22.4; // iPadの大画面に合わせてピッチを最適化
 
         let canvas, ctx, areaEl, inputModal, deleteModal, fitBtn, exportBtn, gridBg, pressProgress, nativeInput;
         let shapeModal, shapeModalTitle, shapeDim1, shapeDim2, shapeDim1Label, shapeDim2Label, shapeGroup1, shapeGroup2;
@@ -461,7 +461,7 @@
 
         let cameraX = 0, cameraY = 0, zoom = 1.0, startRawPos = {x: 0, y: 0}, lastRawPos = {x: 0, y: 0}, hasMoved = false;
         let globalBaseAngle = 0, globalIsCW = true, initialPinchDist = null, initialZoom = 1, initialPinchCenter = null;
-        let actionHistory = [], savedData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let actionHistory = [], savedData = readSavedData();
         let isPanning = false;
         let pressTimer = null, longPressTriggered = false, targetVertexIdx = null, targetEdgeIdx = null;
         let deleteTargetIdx = -1;
@@ -470,8 +470,47 @@
         let slope_y = '', slope_x = '', slope_c = '', slope_a = '', slope_b = '';
         let slopeIsNewEntry = true;
 
-        function persistData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData)); } catch(e) {} }
-        function showToast(msg) { const toast = document.getElementById('toast'); if (!toast) return; toast.innerText = msg; toast.style.opacity = '1'; setTimeout(() => { toast.style.opacity = '0'; }, 2000); }
+        function readSavedData() {
+            try {
+                const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                if (!Array.isArray(data)) throw new Error('Invalid history');
+                return data.filter(d => d && Array.isArray(d.points) && d.points.length >= 3 && d.points.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)) && Number.isFinite(d.ppx) && d.ppx > 0);
+            } catch (e) {
+                window.addEventListener('load', () => showToast('保存履歴を読み込めません。元データは上書きしていません'));
+                return [];
+            }
+        }
+        function persistData() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData)); return true; }
+            catch(e) { showToast('保存できませんでした。容量やブラウザの保存設定を確認してください'); return false; }
+        }
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        function validPolygon(ps) {
+            if (ps.length < 3 || !ps.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) return false;
+            const cross = (a,b,c) => (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+            const on = (a,b,p) => Math.abs(cross(a,b,p)) < 1e-8 && p.x >= Math.min(a.x,b.x)-1e-8 && p.x <= Math.max(a.x,b.x)+1e-8 && p.y >= Math.min(a.y,b.y)-1e-8 && p.y <= Math.max(a.y,b.y)+1e-8;
+            let sum = 0;
+            for(let i=0;i<ps.length;i++) {
+                const a=ps[i], b=ps[(i+1)%ps.length];
+                if(Math.hypot(a.x-b.x,a.y-b.y)<1e-8) return false;
+                sum += a.x*b.y-b.x*a.y;
+                for(let j=i+1;j<ps.length;j++) {
+                    if(j===i+1 || (i===0 && j===ps.length-1)) continue;
+                    const c=ps[j],d=ps[(j+1)%ps.length];
+                    if((cross(a,b,c)*cross(a,b,d)<0 && cross(c,d,a)*cross(c,d,b)<0) || on(a,b,c) || on(a,b,d) || on(c,d,a) || on(c,d,b)) return false;
+                }
+            }
+            return Math.abs(sum)>1e-8;
+        }
+        function showToast(msg) { 
+            const toast = document.getElementById('toast'); 
+            if (!toast) return; 
+            toast.innerText = msg; 
+            toast.style.opacity = '1'; 
+            setTimeout(() => { toast.style.opacity = '0'; }, 2200); 
+        }
         
         function syncViewportHeight(shouldResize = true) {
             const viewportHeight = Math.round((window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight);
@@ -574,7 +613,11 @@
                 }
             }
             rebuildGeometry();
+            if (!validPolygon(points) || !Number.isFinite(calculateTheoreticalArea())) {
+                undo(); showToast('線が交差するか、面積が成立しない設定です'); return false;
+            }
             draw();
+            return true;
         }
 
         function getCanvasCssSize() {
@@ -634,7 +677,7 @@
                 gridBg.style.backgroundSize = `${s}px ${s}px`; 
                 gridBg.style.backgroundPosition = `${cameraX}px ${cameraY}px`; 
             }
-            if (points.length === 0) return;
+            if (points.length === 0) { if (fitBtn) fitBtn.classList.add('hidden'); return; }
 
             if (isClosed) {
                 ctx.beginPath(); 
@@ -804,13 +847,16 @@
             
             document.getElementById('saveBtn').onclick = (e) => { 
                 e.stopPropagation(); 
+                const val = Number(nativeInput.value.trim());
+                if (nativeInput.value.trim() !== '' && (!Number.isFinite(val) || (activeMode === 'edge' ? val <= 0 : val <= 0 || val >= 360))) {
+                    showToast(activeMode === 'edge' ? '寸法は0より大きい数値を入力してください' : '角度は0°より大きく360°未満にしてください'); return;
+                }
                 saveState(); 
-                const val = parseFloat(nativeInput.value); 
                 if (activeMode === 'edge') { 
-                    if (!isNaN(val) && val > 0) manualLengths[selectedIdx] = val; 
+                    if (Number.isFinite(val) && val > 0) manualLengths[selectedIdx] = val; 
                     else delete manualLengths[selectedIdx]; 
                 } else { 
-                    if (!isNaN(val) && val >= 0) fixedAngles[selectedIdx] = val; 
+                    if (nativeInput.value.trim() !== '' && Number.isFinite(val) && val > 0 && val < 360) fixedAngles[selectedIdx] = val; 
                     else delete fixedAngles[selectedIdx]; 
                 } 
                 inputModal.classList.remove('active'); 
@@ -839,6 +885,8 @@
                     showToast("図形を閉じてから保存してください"); 
                     return; 
                 } 
+                if (!validPolygon(points)) { showToast('図形が成立しないため保存できません'); return; }
+                areaEl.innerText = calculateTheoreticalArea().toFixed(2);
                 const dataUrl = canvas.toDataURL("image/png"); 
                 savedData.push({ 
                     img: dataUrl, 
@@ -856,8 +904,8 @@
                     cameraY, 
                     zoom 
                 }); 
-                persistData(); 
-                showToast("保存しました"); 
+                if (!persistData()) { savedData.pop(); return; }
+                showToast("図面を保存しました"); 
             };
 
             document.getElementById('undoBtn').onclick = undo;
@@ -901,11 +949,11 @@
                         else fixedAngles[i] = Math.round(actualDeg * 10) / 10;
                     }
                 }
-                applyGeometryUpdate();
+                if (!applyGeometryUpdate()) return;
                 fitView();
                 setTimeout(fitView, 50);
                 setTimeout(fitView, 180);
-                showToast("図面を整列しました");
+                showToast("図面を直角整列しました");
             };
 
             let isTouching = false;
@@ -920,7 +968,9 @@
                 isTouching = true;
                 syncViewportHeight(false); 
                 if (e.touches.length === 2) { 
-                    isPanning = false; 
+                    if (pressTimer) { clearInterval(pressTimer); pressTimer = null; }
+                    pressProgress.style.opacity = '0';
+                    isPanning = false;
                     targetVertexIdx = null; 
                     targetEdgeIdx = null;
                     initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
@@ -950,11 +1000,14 @@
             }, {passive:false});
 
             window.addEventListener('touchend', (e) => { 
-                handleEnd(); 
+                if (e.touches.length > 0) { hasMoved = true; initialPinchDist = null; targetVertexIdx = null; targetEdgeIdx = null; isPanning = false; return; }
+                handleEnd();
+                initialPinchDist = null;
                 isTouching = false; 
                 syncViewportHeight(false); 
             });
 
+            window.addEventListener('touchcancel', () => { hasMoved = true; handleEnd(); initialPinchDist = null; isTouching = false; });
             window.addEventListener('resize', scheduleViewportSync);
             window.addEventListener('orientationchange', scheduleViewportSync);
             window.addEventListener('pageshow', scheduleViewportSync);
@@ -991,17 +1044,17 @@
             shapeDim1.value = "";
             shapeDim2.value = "";
             shapeModal.classList.add('active');
-            setTimeout(() => shapeDim1.focus(), 100);
+            setTimeout(() => shapeDim1.focus(), 120);
         }
 
         function generateShapeFromModal() {
-            const w = parseFloat(shapeDim1.value) || parseFloat(shapeDim1.placeholder);
-            const h = parseFloat(shapeDim2.value) || parseFloat(shapeDim2.placeholder);
-            if (!h || h <= 0) {
+            const w = Number(shapeDim1.value.trim() || shapeDim1.placeholder);
+            const h = Number(shapeDim2.value.trim() || shapeDim2.placeholder);
+            if (!Number.isFinite(h) || h <= 0) {
                 showToast("有効な高さを入力してください");
                 return;
             }
-            if (!w || w <= 0) {
+            if (!Number.isFinite(w) || w <= 0) {
                 showToast("有効な数値を入力してください");
                 return;
             }
@@ -1018,12 +1071,10 @@
             ppx = scale;
 
             if (currentShapeModalMode === 'right_tri') {
-                // 点0(0,0) -> 点1(w,0) -> 点2(w, -h)
-                // 辺0: 底辺w, 辺1: 高さh(垂直), 角1: 90度, 辺2(水色点線): 斜辺自動計算
                 points = [
                     { x: 0, y: 0 },
                     { x: w * scale, y: 0 },
-                    { x: w * scale, y: -h * scale }
+                    { x: w * scale, y: h * scale }
                 ];
                 manualLengths[0] = w;
                 manualLengths[1] = h;
@@ -1108,6 +1159,7 @@
                 }
             }
             slopeIsNewEntry = true;
+            updateSlopeDisplay();
         }
 
         function formatVal(val) { 
@@ -1117,11 +1169,11 @@
         }
 
         function updateSlopeDisplay() {
-            document.getElementById('slope_val_y').value = slope_y; 
+            document.getElementById('slope_val_y').value = activeSlopeField === 'y' ? slope_y : (slope_y === '' ? '' : String(Math.round(Number(slope_y) * 10000) / 10000)); 
             document.getElementById('slope_val_x').value = slope_x;
-            document.getElementById('slope_val_c').value = formatVal(slope_c); 
-            document.getElementById('slope_val_a').value = formatVal(slope_a); 
-            document.getElementById('slope_val_b').value = formatVal(slope_b);
+            document.getElementById('slope_val_c').value = activeSlopeField === 'c' ? slope_c : formatVal(slope_c); 
+            document.getElementById('slope_val_a').value = activeSlopeField === 'a' ? slope_a : formatVal(slope_a); 
+            document.getElementById('slope_val_b').value = activeSlopeField === 'b' ? slope_b : formatVal(slope_b);
             
             const y_num = parseFloat(slope_y) || 0; 
             document.getElementById('svg_val_c').textContent = slope_c ? formatVal(slope_c) : '-';
@@ -1154,9 +1206,13 @@
                 else if (activeSlopeField === 'c') slope_c = ''; 
                 else if (activeSlopeField === 'a') slope_a = ''; 
                 else if (activeSlopeField === 'b') slope_b = ''; 
-                slopeIsNewEntry = true; 
-                updateSlopeDisplay(); 
-                return; 
+                if (activeSlopeField === 'y') slope_x = '';
+                if (activeSlopeField === 'x') slope_y = '';
+                if (activeSlopeField === 'y' || activeSlopeField === 'x' || activeSlopeField === 'c') { slope_a = ''; slope_b = ''; }
+                else { slope_y = ''; slope_x = ''; }
+                slopeIsNewEntry = true;
+                updateSlopeDisplay();
+                return;
             }
             if (key === '⏎') { 
                 const fields = ['y', 'x', 'c', 'a', 'b']; 
@@ -1183,6 +1239,8 @@
 
         function processSlopeChange(field, val) {
             const cleanVal = val.toString().replace(/,/g, '');
+            const numeric = Number(cleanVal);
+            if (cleanVal !== '' && cleanVal !== '.' && (!Number.isFinite(numeric) || numeric < 0 || (field === 'x' && numeric >= 90))) { showToast('有効な数値を入力してください。角度は0°以上90°未満です'); return; }
             if (field === 'y') { 
                 slope_y = cleanVal; 
                 const n = parseFloat(cleanVal); 
@@ -1199,7 +1257,7 @@
                     slope_y = ''; 
                 } else { 
                     const nY = 100 * Math.tan(n * Math.PI / 180); 
-                    slope_y = Math.round(nY).toString(); 
+                    slope_y = nY.toString(); 
                     calculateDependencies('y', nY); 
                 } 
             } else if (field === 'c') { 
@@ -1215,6 +1273,16 @@
         }
 
         function calculateDependencies(changedField, changedValue) {
+            // A horizontal distance of zero does not define a supported roof slope.
+            if ((changedField === 'c' && (!Number.isFinite(changedValue) || changedValue <= 0)) ||
+                (changedField !== 'c' && slope_c !== '' && Number(slope_c) <= 0)) {
+                if (changedField === 'c') { slope_y = ''; slope_x = ''; slope_a = ''; slope_b = ''; }
+                else if (changedField === 'a') { slope_y = ''; slope_x = ''; slope_b = ''; }
+                else if (changedField === 'b') { slope_y = ''; slope_x = ''; slope_a = ''; }
+                else { slope_a = ''; slope_b = ''; }
+                showToast('水平寸法は0より大きい数値にしてください');
+                return;
+            }
             const curY = (changedField === 'y') ? changedValue : parseFloat(slope_y) || 0; 
             const curC = (changedField === 'c') ? changedValue : parseFloat(String(slope_c).replace(/,/g, '')) || 0; 
             const curA = (changedField === 'a') ? changedValue : parseFloat(String(slope_a).replace(/,/g, '')) || 0; 
@@ -1225,23 +1293,23 @@
                 if ((changedField === 'y' || changedField === 'c') && !isNaN(curY)) { 
                     const nextA = curC * (curY / 100); 
                     const nextB = Math.sqrt(curC**2 + nextA**2); 
-                    slope_a = Math.round(nextA).toString(); 
-                    slope_b = Math.round(nextB).toString(); 
+                    slope_a = nextA.toString(); 
+                    slope_b = nextB.toString(); 
                 } else if (changedField === 'a') { 
                     if (curC !== 0 && !isNaN(curA)) { 
                         const calcY = (curA / curC) * 100; 
-                        slope_y = Math.round(calcY).toString(); 
+                        slope_y = calcY.toString(); 
                         slope_x = (Math.round((Math.atan(calcY / 100) * 180) / Math.PI * 10) / 10).toFixed(1); 
-                        slope_b = Math.round(Math.sqrt(curC**2 + curA**2)).toString(); 
-                    } else { 
-                        slope_b = ''; 
+                        slope_b = (Math.sqrt(curC**2 + curA**2)).toString(); 
+                    } else {
+                        slope_y = ''; slope_x = ''; slope_b = '';
                     } 
                 } else if (changedField === 'b') { 
                     if (!isNaN(curB) && curB >= curC) { 
                         const calcA = Math.sqrt(Math.max(0, curB**2 - curC**2)); 
-                        slope_a = Math.round(calcA).toString(); 
+                        slope_a = calcA.toString(); 
                         const calcY = (curC === 0) ? 0 : (calcA / curC) * 100; 
-                        slope_y = Math.round(calcY).toString(); 
+                        slope_y = calcY.toString(); 
                         slope_x = (Math.round((Math.atan(calcY / 100) * 180) / Math.PI * 10) / 10).toFixed(1); 
                     } else { 
                         slope_a = ''; slope_y = ''; slope_x = ''; 
@@ -1252,28 +1320,28 @@
                     if (changedField === 'a') { 
                         if (curY !== 0) { 
                             const calcC = curA / (curY / 100); 
-                            slope_c = Math.round(calcC).toString(); 
-                            slope_b = Math.round(Math.sqrt(calcC**2 + curA**2)).toString(); 
+                            slope_c = calcC.toString(); 
+                            slope_b = (Math.sqrt(calcC**2 + curA**2)).toString(); 
                         } 
                     } else if (changedField === 'b') { 
                         const calcC = curB / Math.sqrt(1 + (curY / 100)**2); 
-                        slope_c = Math.round(calcC).toString(); 
-                        slope_a = Math.round(calcC * (curY / 100)).toString(); 
+                        slope_c = calcC.toString(); 
+                        slope_a = (calcC * (curY / 100)).toString(); 
                     }
                 } else if (changedField === 'a' && slope_b !== '') { 
                     if (curB > curA) { 
                         const calcC = Math.sqrt(curB**2 - curA**2); 
-                        slope_c = Math.round(calcC).toString(); 
+                        slope_c = calcC.toString(); 
                         const calcY = (curA / calcC) * 100; 
-                        slope_y = Math.round(calcY).toString(); 
+                        slope_y = calcY.toString(); 
                         slope_x = (Math.round((Math.atan(calcY / 100) * 180) / Math.PI * 10) / 10).toFixed(1); 
                     } 
                 } else if (changedField === 'b' && slope_a !== '') { 
                     if (curB > curA) { 
                         const calcC = Math.sqrt(curB**2 - curA**2); 
-                        slope_c = Math.round(calcC).toString(); 
+                        slope_c = calcC.toString(); 
                         const calcY = (curA / calcC) * 100; 
-                        slope_y = Math.round(calcY).toString(); 
+                        slope_y = calcY.toString(); 
                         slope_x = (Math.round((Math.atan(calcY / 100) * 180) / Math.PI * 10) / 10).toFixed(1); 
                     } 
                 }
@@ -1289,7 +1357,8 @@
             isClosed = state.isClosed; 
             ppx = state.ppx; 
             globalBaseAngle = state.globalBaseAngle; 
-            globalIsCW = state.globalIsCW; 
+            globalIsCW = state.globalIsCW;
+            cameraX = state.cameraX ?? cameraX; cameraY = state.cameraY ?? cameraY; zoom = state.zoom ?? zoom; 
             areaEl.innerText = isClosed && points.length >= 3 ? calculateTheoreticalArea().toFixed(2) : "--.--";
             draw(); 
         }
@@ -1302,7 +1371,7 @@
                 isClosed, 
                 ppx, 
                 globalBaseAngle, 
-                globalIsCW 
+                globalIsCW, cameraX, cameraY, zoom
             }; 
             actionHistory.push(state); 
             if (actionHistory.length > 50) actionHistory.shift(); 
@@ -1337,7 +1406,7 @@
             cameraX = data.cameraX || 0; 
             cameraY = data.cameraY || 0; 
             zoom = data.zoom || 1.0; 
-            areaEl.innerText = data.area || (isClosed && points.length >= 3 ? calculateTheoreticalArea().toFixed(2) : "--.--");
+            areaEl.innerText = isClosed && points.length >= 3 ? calculateTheoreticalArea().toFixed(2) : "--.--";
             switchTab('draw'); 
             draw(); 
             showToast("データを読み込みました"); 
@@ -1346,18 +1415,35 @@
         function renderHistory() { 
             const list = document.getElementById('historyList'); 
             if (savedData.length === 0) { 
-                list.innerHTML = `<div class="text-center text-[#8E8E93] py-20 font-bold">まだ保存されたデータはありません</div>`; 
+                list.innerHTML = `<div class="col-span-full text-center text-[#8E8E93] py-24 font-bold text-lg">まだ保存されたデータはありません</div>`; 
                 return; 
             } 
             list.innerHTML = savedData.slice().reverse().map((data, idx) => { 
                 const actualIdx = savedData.length - 1 - idx; 
-                return `<div class="history-card"><input type="text" class="memo-input" placeholder="メモを入力..." value="${data.memo || ''}" onchange="updateMemo(${actualIdx}, this.value)"><div class="flex justify-between items-center mb-2 px-1"><span class="text-[#8E8E93] text-xs font-bold">${data.time}</span><span class="text-white font-black text-lg">${data.area} m²</span></div><div onclick="loadHistory(${actualIdx})" class="active:opacity-70 transition-opacity"><img src="${data.img}" class="w-full rounded-xl border border-white/10 mb-3 bg-[#000]"><div class="text-center text-[11px] text-[#5E5CE6] font-bold mb-2 uppercase tracking-widest">タップで編集を再開</div></div><div class="flex gap-2"><button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] text-[#FF453A] rounded-xl font-bold text-sm btn-tap">削除</button></div></div>`; 
+                return `
+                <div class="history-card flex flex-col justify-between hover:border-zinc-500 transition-colors">
+                    <div>
+                        <input type="text" class="memo-input focus:text-white" placeholder="メモを入力..." value="${escapeHTML(data.memo)}" onchange="updateMemo(${actualIdx}, this.value)">
+                        <div class="flex justify-between items-center mb-3 px-1">
+                            <span class="text-[#8E8E93] text-xs font-bold">${escapeHTML(data.time)}</span>
+                            <span class="text-white font-black text-xl">${escapeHTML(data.area)} m²</span>
+                        </div>
+                        <div onclick="loadHistory(${actualIdx})" class="active:opacity-75 transition-opacity cursor-pointer">
+                            <img src="${escapeHTML(data.img)}" class="w-full h-48 object-contain rounded-xl border border-white/10 mb-3 bg-[#0a0a0c]">
+                            <div class="text-center text-xs text-[#5E5CE6] font-bold mb-3 uppercase tracking-wider">タップで編集を再開</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 pt-2 border-t border-white/5">
+                        <button onclick="deleteHistory(${actualIdx})" class="flex-1 py-3 bg-[#2C2C2E] hover:bg-red-950/40 text-[#FF453A] rounded-xl font-bold text-sm btn-tap transition-colors">削除</button>
+                    </div>
+                </div>`; 
             }).join(''); 
         }
 
         function updateMemo(idx, val) { 
-            savedData[idx].memo = val; 
-            persistData(); 
+            const previousMemo = savedData[idx].memo;
+            savedData[idx].memo = val;
+            if (!persistData()) { savedData[idx].memo = previousMemo; return; } 
             showToast("メモを保存しました"); 
         }
 
@@ -1368,8 +1454,8 @@
 
         function executeDelete() { 
             if (deleteTargetIdx !== -1) { 
-                savedData.splice(deleteTargetIdx, 1); 
-                persistData(); 
+                const removed = savedData.splice(deleteTargetIdx, 1);
+                if (!persistData()) { savedData.splice(deleteTargetIdx, 0, ...removed); deleteModal.classList.remove('active'); return; } 
                 renderHistory(); 
                 deleteModal.classList.remove('active'); 
                 deleteTargetIdx = -1; 
@@ -1391,7 +1477,7 @@
                 saveState(); 
                 const world = s2w(raw); 
                 const snapped = {x: Math.round(world.x), y: Math.round(world.y)}; 
-                if (points.length >= 3 && Math.hypot(raw.x - w2s(points[0]).x, raw.y - w2s(points[0]).y) < 50) { 
+                if (points.length >= 3 && Math.hypot(raw.x - w2s(points[0]).x, raw.y - w2s(points[0]).y) < 55) { 
                     finalizeDrawing(); 
                 } else { 
                     points.push(snapped); 
@@ -1403,13 +1489,13 @@
             for (let i = 0; i < points.length; i++) { 
                 const p1 = w2s(points[i]), p2 = w2s(points[(i + 1) % points.length]); 
                 const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2; 
-                if (Math.hypot(raw.x - mx, raw.y - my) < 35) { 
+                if (Math.hypot(raw.x - mx, raw.y - my) < 40) { 
                     targetEdgeIdx = i; 
                     return; 
                 } 
             }
 
-            const vIdx = points.findIndex(p => Math.hypot(raw.x - w2s(p).x, raw.y - w2s(p).y) < 30);
+            const vIdx = points.findIndex(p => Math.hypot(raw.x - w2s(p).x, raw.y - w2s(p).y) < 35);
             if (vIdx !== -1) {
                 targetVertexIdx = vIdx; 
                 pressProgress.style.opacity = '1'; 
@@ -1431,7 +1517,7 @@
                 if (l2 === 0) continue;
                 let t = Math.max(0, Math.min(1, ((raw.x - w2s(points[i]).x) * (w2s(points[(i + 1) % points.length]).x - w2s(points[i]).x) + (raw.y - w2s(points[i]).y) * (w2s(points[(i + 1) % points.length]).y - w2s(points[i]).y)) / l2));
                 const dist = Math.hypot(raw.x - (w2s(points[i]).x + t * (w2s(points[(i + 1) % points.length]).x - w2s(points[i]).x)), raw.y - (w2s(points[i]).y + t * (w2s(points[(i + 1) % points.length]).y - w2s(points[i]).y))); 
-                if (dist < 25) { 
+                if (dist < 28) { 
                     targetEdgeIdx = i; 
                     return; 
                 } 
@@ -1473,7 +1559,6 @@
                     selectedIdx = targetVertexIdx; 
                     openModal(); 
                 } else if (targetEdgeIdx !== null) { 
-                    // 水色点線（最後の閉じる辺）は自動計算辺のため手動寸法入力をガード
                     if (targetEdgeIdx === points.length - 1) {
                         showToast("この斜辺は他の寸法から自動計算されます");
                     } else {
@@ -1490,18 +1575,21 @@
         }
 
         function finalizeDrawing() { 
-            saveState(); 
+            if (!validPolygon(points)) { showToast('線の交差・重複・面積のない図形は閉じられません'); return; }
+            saveState();
             isClosed = true; 
             globalBaseAngle = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x); 
             let s = 0; 
             for(let i = 0; i < points.length; i++) {
                 s += points[i].x * points[(i + 1) % points.length].y - points[(i + 1) % points.length].x * points[i].y; 
             }
-            globalIsCW = s > 0; 
+            globalIsCW = s > 0;
+            areaEl.innerText = calculateTheoreticalArea().toFixed(2);
             draw(); 
         }
         
         function openModal() {
+            if (activeMode === 'angle' && (selectedIdx === 0 || selectedIdx === points.length - 1)) { showToast('この頂点の角度は他の寸法・角度から自動計算されます'); return; }
             const modalInputContainer = document.getElementById('modalInputContainer');
             const saveBtn = document.getElementById('saveBtn');
             const modalUnit = document.getElementById('modalUnit');
@@ -1594,6 +1682,7 @@
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (hasRefreshedForPwaUpdate) return;
                 hasRefreshedForPwaUpdate = true;
+                if ((typeof points !== 'undefined' && points.length > 0) || (typeof slope_y !== 'undefined' && [slope_y, slope_x, slope_c, slope_a, slope_b].some(value => value !== ''))) { showToast('更新済みです。図面を保存し、勾配計算の結果を控えてからアプリを開き直してください'); return; }
                 window.location.reload();
             });
         })();
